@@ -1,0 +1,67 @@
+{
+  "manifest_version": 3,
+  "name": "ScrollGuard",
+  "version": "1.0.0",
+  "description": "AI-powered wellbeing browser extension that tracks short-form video consumption and provides behavioral insights.",
+  "permissions": [
+    "storage",
+    "alarms",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "*://*.youtube.com/*",
+    "*://*.instagram.com/*",
+    "*://*.facebook.com/*",
+    "*://*.tiktok.com/*",
+    "*://*.x.com/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*",
+    "http://localhost:3000/*",
+    "http://127.0.0.1:3000/*"
+  ],
+  "action": {
+    "default_popup": "src/popup/index.html",
+    "default_icon": {
+      "16": "public/icon16.png",
+      "48": "public/icon48.png",
+      "128": "public/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "js": ["src/content-scripts/youtube.iife.ts"],
+      "matches": ["*://*.youtube.com/*"]
+    },
+    {
+      "js": ["src/content-scripts/instagram.iife.ts"],
+      "matches": ["*://*.instagram.com/*"]
+    },
+    {
+      "js": ["src/content-scripts/facebook.iife.ts"],
+      "matches": ["*://*.facebook.com/*"]
+    },
+    {
+      "js": ["src/content-scripts/tiktok.iife.ts"],
+      "matches": ["*://*.tiktok.com/*"]
+    },
+    {
+      "js": ["src/content-scripts/x.iife.ts"],
+      "matches": ["*://*.x.com/*", "*://twitter.com/*"]
+    },
+    {
+      "js": ["src/widget/index.iife.tsx"],
+      "matches": [
+        "*://*.youtube.com/*",
+        "*://*.instagram.com/*",
+        "*://*.facebook.com/*",
+        "*://*.tiktok.com/*",
+        "*://*.x.com/*",
+        "*://twitter.com/*"
+      ]
+    }
+  ]
+}
