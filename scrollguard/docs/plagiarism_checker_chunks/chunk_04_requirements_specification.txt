@@ -1,0 +1,84 @@
+[REQUIREMENTS SPECIFICATION]
+Security Boundary & Input Sanitization (NFR-09): Written intention inputs in Stage 2 undergo strict string length and character sanitization, stripping HTML tags and preventing cross-site scripting vulnerabilities.
+
+Memory Efficiency & Garbage Collection: Event listeners bound to video elements are removed via tracker.stop() when elements unmount, preventing detached DOM tree memory leaks in long-running browser sessions.
+
+Checks window.location.pathname against /shorts, /reels, /reel. Updates isOnShorts state.
+
+Widget mounted (on feed) or unmounted (off feed).
+
+IntersectionObserver fires when video element intersects >= 60% center viewport.
+
+Attaches VideoTracker to active HTMLVideoElement node.
+
+Poll interval (1s) checks video.paused and document.hasFocus(). Accumulates watch time.
+
+Emits playback heartbeat every 1 second to tracker state.
+
+Active video viewport exits (< 60%); tracker stops. Calculates watchDurationMs = end - start.
+
+Dispatches RECORD_VIDEO_EVENT message with VideoEvent payload.
+
+Receives VideoEvent; increments totalVideos, totalWatchTimeMs, byHour histogram in memory.
+
+totalVideosWatched >= videoLimit evaluated synchronously in React useEffect hook.
+
+Sets overrideStartClips = totalVideosWatched. Sets nudgeCleared = true in storage.
+
+Dismisses Stage 1 modal and restores feed scrolling.
+
+Background worker detects no RECORD_VIDEO_EVENT for 90 seconds. Calls closeSession().
+
+Flushes session record to IndexedDB. Resets session tracking.
+
+7.1. Formal Event-Response Table (Part 1: Telemetry Ingestion & Interception)
+
+Reactive Event-Driven Architecture: ScrollGuard is engineered as a fully reactive, event-driven system where every observable browser state transition -- URL navigation, video viewport entry, playback heartbeats, storage updates -- is modeled as a discrete named event with a deterministic processing contract. Events E-01 through E-03 are intercepted using the W3C IntersectionObserver and MutationObserver APIs, providing zero-polling asynchronous callbacks that eliminate busy-wait CPU overhead. The IntersectionObserver threshold of 0.6 (60%) is derived from cognitive science research on attentional lock-on -- below this threshold, peripheral attention remains available and the viewer is not yet in a committed watching state, preventing premature clip counting during fast swipes.
+
+Table 7.1: Formal Event-Response Specification (Part 1 - Telemetry Ingestion & Interception Events E-01 to E-08). The sub-second dispatch pipeline ensures high-velocity video swipes are captured before the host DOM recycles media elements. Event E-06
+
+Evaluates (totalVideosWatched - overrideStartClips) >= 5. Stage 2 condition met.
+
+Transitions focusState to . Intention Wall renders.
+
+Validates reason.trim().length >= 5. Stores intention to escalationState.
+
+Dismisses modal; records reason; resets delta counter.
+
+Evaluates (totalVideosWatched - overrideStartClips) >= 8. Stage 3 condition met.
+
+Transitions focusState to . 60-second timer begins.
+
+Decrements breathTimer from 60 to 0. Cycles breathing phase: Inhale (4s) > Hold (7s) > Exhale (8s).
+
+Live countdown and phase label update SVG animated circle.
+
+Triggers compulsory break. Duration = 60s base + (takeoverCount * 60s), capped at 300s.
+
+Transitions focusState to . Fullscreen takeover modal activates.
+
+Capture-phase addEventListener intercepts ArrowDown, Space, Tab, PageDown, WheelEvent during active modal.
+
+Interval (500ms) queries all video elements on host DOM. Calls video.pause() on each found node.
+
+All host DOM video nodes remain paused while modal is visible.
+
+Compares new Date().toISOString().slice(0,10) against stored sessionDate. Date mismatch triggers reset.
+
+Wipes daily stats, clip count to 0, escalation stage to 1.
+
+7.1. Formal Event-Response Table (Part 2: Progressive Friction Escalation & Storage)
+
+Progressive Friction State Machine Design: Events E-09 through E-13 implement a four-stage deterministic finite automaton (DFA) for cognitive friction escalation. The state machine ensures that each behavioral intervention is proportionally matched to the severity of overconsumption -- from a gentle reflective nudge (Stage 1) to a compulsory timed break (Stage 4). The escalation thresholds (+5, +8, +11 clips past the limit) are derived from behavioral economics research on loss aversion and temporal discounting.
+
+Table 7.2: Formal Event-Response Specification (Part 2 - Escalation, Lockout & Storage Events). Events E-09 through E-16 define the friction ladder escalation, hard keyboard interception, video pause, and 24-hour midnight rollover reset contracts.
+
+Capture-Phase Interception (E-14): ScrollGuard s handler from executing. This guarantees that no social media feed JavaScript can programmatically bypass scroll-lock enforcement during active modals.
+
+Exponential Takeover Duration (E-13): Break duration: min(60 + (takeoverCount * 60), 300) seconds. First takeover = 60s; each repeat adds 60s up to 5 minutes maximum. This progressive scaling creates a strong disincentive against repeated overrides without imposing permanent platform lockouts.
+
+Conceptual Data Model in Chen s Entity-Relationship notation, which represents real-world objects (rectangles), relationship verbs (diamonds), and entity attributes (ovals). The model captures the persistent and in-memory relational structures binding user configuration, daily telemetry aggregates, browsing sessions, discrete video events, and live escalation ladder states:
+
+Cardinality Analysis: The relationship USER_PREFERENCE TRACKS (1:N) DAILY_AGGREGATE captures that a single user profile generates exactly one aggregate record per calendar day. The relationship DAILY_AGGREGATE AGGREGATES (1:N) SESSION_LOG reflects that each daily window encompasses multiple discrete browsing sessions. Each session in turn contains zero-or-more VIDEO_EVENT child records via the CONTAINS (1:N) relationship. Finally, exactly one ESCALATION_STATE record exists per active platform at any moment, enforcing the ENFORCES (1:1) constraint with the current session.
+
+BCNF Normalization Verification: All five entities satisfy Boyce-Codd Normal Form (BCNF). In VIDEO_EVENT , the composite key (videoId, startTime) uniquely determines all non-key attributes ( watchDurationMs , completed , skipped ). No transitive dependencies exist, as platform is a direct property of each event rather than a derived attribute from any secondary key. In DAILY_AGGREGATE , the natural key date uniquely determines totalVideos , byPlatform , and byHour without functional redundancy.

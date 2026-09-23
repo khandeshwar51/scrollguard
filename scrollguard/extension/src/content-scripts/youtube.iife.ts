@@ -2,7 +2,18 @@ import { VideoTracker } from '../shared/tracker';
 
 console.log('[ScrollGuard] YouTube detector initialized.');
 
+function isShortsContext(video?: HTMLVideoElement): boolean {
+  if (location.pathname.startsWith('/shorts')) return true;
+  if (video && video.closest('ytd-reel-video-renderer, ytd-shorts, #shorts-container')) return true;
+  return false;
+}
+
 function getShortsVideoId(video: HTMLVideoElement): string | null {
+  // Only detect Shorts - ignore regular YouTube homepage / watch videos
+  if (!isShortsContext(video)) {
+    return null;
+  }
+
   // 1. Check parent ytd-reel-video-renderer custom element attribute
   const renderer = video.closest('ytd-reel-video-renderer');
   if (renderer) {
@@ -14,7 +25,7 @@ function getShortsVideoId(video: HTMLVideoElement): string | null {
   const match = location.pathname.match(/\/shorts\/([a-zA-Z0-9_-]+)/);
   if (match) return match[1];
 
-  // 3. Fallback: hash of source source URL string
+  // 3. Fallback: hash of source source URL string ONLY IF inside shorts context
   if (video.src) {
     try {
       return btoa(video.src.split('?')[0]).substring(0, 16);
@@ -39,8 +50,8 @@ const intersectionObserver = new IntersectionObserver(
     for (const entry of entries) {
       if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
         const video = entry.target as HTMLVideoElement;
-        // Verify it is a valid video in the active viewport area
-        if (video.offsetWidth > 150 && video.offsetHeight > 150) {
+        // Verify it is a valid video in the active viewport area and in shorts context
+        if (isShortsContext(video) && video.offsetWidth > 150 && video.offsetHeight > 150) {
           activeIntersectionVideo = video;
           tracker.track(video);
           break;
@@ -52,9 +63,20 @@ const intersectionObserver = new IntersectionObserver(
 );
 
 function observeYouTubeVideos() {
+  // If user navigated away from shorts to homepage or search, stop tracking
+  if (!isShortsContext()) {
+    if (activeIntersectionVideo) {
+      tracker.stop();
+      activeIntersectionVideo = null;
+    }
+    return;
+  }
+
   const videos = document.querySelectorAll('video');
   videos.forEach((video) => {
-    intersectionObserver.observe(video);
+    if (isShortsContext(video)) {
+      intersectionObserver.observe(video);
+    }
   });
 }
 

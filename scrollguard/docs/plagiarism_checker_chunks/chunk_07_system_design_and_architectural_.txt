@@ -1,0 +1,50 @@
+[SYSTEM DESIGN & ARCHITECTURAL MODELING]
+8.6. Component Diagram (Modular Subsystem Architecture)
+
+Modular Decomposition into Decoupled Subsystems: The Component Diagram organizes ScrollGuard
+
+Figure 8.5: UML Component Diagram - Six-Subsystem Modular Architecture with Interface Boundaries.
+
+Component Coupling Analysis: The Host Web DOM Layer and Content Script Engine are connected via a bi-directional interface (DOM mutation callbacks and event listeners). The Content Script Engine in turn interfaces with the Shadow DOM UI Sandbox to render friction modals, and with the Background Service Worker via Chrome runtime messaging. The Background Service Worker interfaces with the Local Persistence Subsystem (IndexedDB + chrome.storage) for all data reads and writes. The Web Analytics Cockpit operates as an independent React SPA, querying storage directly.
+
+Shadow DOM Isolation Guarantee: The Shadow DOM UI Sandbox component enforces complete CSS style and DOM tree isolation from the host page via an attachShadow({ mode: }) call on a neutral appended to the host page body. No CSS selectors from the host page s UI renders with pixel-perfect fidelity across YouTube, Instagram, Facebook, TikTok, and X without visual contamination.
+
+8.7. Deployment Diagram (Physical Execution Environment Topology)
+
+Physical & Virtual Execution Node Topology: The Deployment Diagram specifies the concrete runtime environment hosting ScrollGuard
+
+Figure 8.6: UML Deployment Diagram - Multi-Process Browser Architecture & Optional AI Backend Node.
+
+Process Isolation Security Model: Chromium enforces strict OS-level process isolation between the Renderer Process (hosting the content scripts injected into social media feeds) and the Extension Service Worker Process. Cross-process communication occurs exclusively through the validated chrome.runtime messaging API, preventing content scripts from directly accessing extension storage or background service resources. This sandboxing architecture is a core security guarantee of the Manifest V3 extension platform.
+
+Privacy-First Local Architecture: The deployment topology deliberately avoids any mandatory cloud server dependency. All behavioral telemetry -- video events, sessions, daily aggregates, escalation state -- resides exclusively within the user
+
+10.1. Ambient Brain Avatar Pill Badge & Real-Time Clip Counter
+
+Shadow DOM Injected Ambient Feedback Layer: The Brain Health Pill Badge is the primary ambient feedback component of the ScrollGuard system. It renders as a compact, draggable, non-intrusive pill overlay directly within the active short-form video feed, injected via an isolated W3C Shadow DOM root. The badge persistently displays the current video clip count against the user-configured daily budget and dynamically transitions through three affective avatar states to reflect consumption severity.
+
+Figure 10.1: Ambient Brain Avatar Pill Badge - (Left) Viewport Overlay; (Top-Right) Compact Pill Badge; (Bottom-Right) Expanded Telemetry Card.
+
+Affective State Transition Design: The badge transitions through three emoji-avatar states: (1) Happy Brain (cream background, smiling avatar) when clips watched are below 50% of the daily budget; (2) Worried Brain (amber background, anxious avatar) when clips are between 50% and 99% of the budget; and (3) Zombie Brain (red background, dazed avatar) when the budget is depleted. These affective cues leverage the Fogg Behavior Model Trigger
+
+Minimal Cognitive Intrusion: The badge occupies less than 2% of the visible viewport area and is hidden on non-feed pages (home, search, profile). Users may drag it to any corner of the screen via pointer event handlers. This respects the Nielsen Norman Group Flexibility and Efficiency of Use
+
+10.2. Stage 1 Soft Nudge Mindful Choice Interstitial Modal
+
+Non-Punitive Behavioral Intervention: The Stage 1 Soft Nudge is the first tier of the Progressive Friction Ladder, triggered exactly when totalVideosWatched equals the user-configured daily videoLimit . The modal renders immediately within the same JavaScript event loop tick as the limit breach detection, darkening the host viewport with a glassmorphic blur overlay while maintaining full transparency of the underlying video content behind the glass effect.
+
+Figure 10.2: Stage 1 Soft Nudge Mindful Choice Modal Displaying upon Exact Video Limit Breach.
+
+Choice Architecture Design: The modal presents two deliberate action paths: m Done Continue (+5) s Nudge Theory (2008): by making the prosocial behavior (ending the session) the visually prominent primary action, the system provides gentle libertarian paternalism without removing user autonomy.
+
+Automated Media Pause & Scroll-Lock: The Stage 1 modal simultaneously: (a) calls video.pause() on all active host page video elements; (b) attaches capture-phase keydown , wheel , and touchstart event interceptors to prevent scroll-driven feed advancement; and (c) mutes ambient media tracks. This prevents users from accidentally bypassing the intervention through muscle-memory swipe gestures.
+
+10.3. Stage 2 Written Intention Wall Friction Modal
+
+Metacognitive Interruption Through Linguistic Commitment: The Stage 2 Intention Wall activates when the user overrides the Stage 1 nudge and consumes an additional 5 videos beyond the base limit. The modal requires the user to explicitly articulate a written justification for continuing media consumption. The submission button is programmatically disabled until the input field contains a minimum of 5 non-whitespace characters, enforcing a genuine cognitive commitment act.
+
+Figure 10.3: Stage 2 Intention Wall Requiring Written Justification Before Continued Browsing.
+
+Psychological Mechanism - Implementation Intention: The requirement to verbalize a reason for continued media consumption activates what Gollwitzer (1999) terms an implementation intention -- the process of forming explicit behavioral plans. Neuroscientific research demonstrates that articulating a goal in natural language activates the prefrontal cortex s impulsive dopamine-seeking drive. This shifts the user
+
+Technical Implementation: The text element s disabled attribute is bound reactively to this boolean expression. The submitted reason string is persisted to escalationState.lastReason in chrome.storage.local for optional future review in the analytics cockpit.

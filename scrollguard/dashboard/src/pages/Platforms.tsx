@@ -214,12 +214,7 @@ export default function Platforms({ data }: PlatformsProps) {
                 <tbody className="text-slate-300 font-medium">
                   {Object.entries(platformStats).map(([plat, stats]) => {
                     const speed = calculateScrollSpeed(stats.timeMs, stats.count);
-                    const getPaceLevel = (count: number) => {
-                      if (count > 50) return 'Risky';
-                      if (count > 25) return 'Moderate';
-                      return 'Healthy';
-                    };
-                    const level = getPaceLevel(stats.count);
+                    const level = speed.level;
                     const hours = Math.floor(stats.timeMs / 3600000);
                     const mins = Math.round((stats.timeMs % 3600000) / 60000);
 

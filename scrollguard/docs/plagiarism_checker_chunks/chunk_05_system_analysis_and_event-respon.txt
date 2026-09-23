@@ -1,0 +1,58 @@
+[SYSTEM ANALYSIS & EVENT-RESPONSE]
+Schema Partitioning Rationale: The deliberate separation of high-frequency append-only telemetry ( VIDEO_EVENT ) from read-heavy dashboard aggregations ( DAILY_AGGREGATE ) prevents IndexedDB write contention during rapid video swiping, while simultaneously enabling sub-10ms read latency for the React dashboard
+
+8.1. Unified Modeling Language (UML) 2.5 Class Diagram
+
+Object-Oriented Architectural Overview: The static structural design of ScrollGuard is modeled using the UML 2.5 Class Diagram notation. The diagram depicts six primary engine classes, their type-annotated private attributes, public method signatures with return types, and inter-class association arrows with direction and multiplicity labels. Visibility modifiers follow the UML standard: (+) denotes public access, (-) denotes private encapsulation. All class stubs carry the > stereotype.
+
+Figure 8.1: UML 2.5 Class Diagram - Six Engine Classes with Attributes, Methods & Associations.
+
+Design Pattern Analysis - Observer Pattern: VideoTracker implements the Observer design pattern by registering an IntersectionObserver instance that passively monitors HTMLVideoElement objects entering the viewport threshold. Upon receiving a viewport intersection callback, VideoTracker notifies WidgetController (the Subject) to update its internal clip counter state. This decoupling ensures that the tracking logic remains independent of the UI rendering lifecycle.
+
+Design Pattern Analysis - State Pattern: WidgetController implements the State design pattern via the focusState discriminated union field, which transitions through states: -> -> -> -> . Each state maps to a distinct rendered component tree within the Shadow DOM, ensuring that the UI always reflects the current behavioral intervention tier without complex conditional rendering logic scattered across components.
+
+Separation of Concerns: BehaviorClassifier , DopamineEngine , and ScrollSpeedEngine are stateless pure-function modules with no side effects. This architectural constraint ensures they are fully testable in isolation via Vitest unit tests without requiring browser environment mocking.
+
+Functional Scope & System Boundary Definition: The Use Case Diagram formally delineates the functional boundaries of the ScrollGuard system and maps external actors to their associated operational use cases. The system boundary rectangle encompasses all nine internally handled use cases. Three external actors interact with the system: the Digital Consumer (User) as the primary human actor; the Social Media Feed (YouTube / Instagram) as the host web environment actor; and the Service Worker (Background Timer) as an automated software agent actor.
+
+Figure 8.2: UML Use Case Diagram Defining the Functional Scope, System Boundary & Actor Associations.
+
+Actor-Goal Summary: The Digital Consumer initiates short-form video feed browsing (UC-01) and receives ambient biofeedback through the Brain Health Badge (UC-02). Upon reaching the configured daily video limit, the system sequentially presents: the Stage 1 Soft Nudge Choice Modal (UC-03), the Stage 2 Written Intention Wall (UC-04), the Stage 3 60-Second Breathing Reset (UC-05), and the Stage 4 Compulsory Break Lockout (UC-06). The Digital Consumer can also inspect historical analytics and circadian heatmaps through the Web Analytics Cockpit (UC-07). In parallel, the Background Service Worker autonomously finalizes inactive sessions (UC-08) and enforces midnight daily counter rollover (UC-09).
+
+Include vs. Extend Relationships: UC-04 (Intention Wall), UC-05 (Breathing Reset), and UC-06 (Compulsory Lockout) are modeled as > relationships from UC-03 (Soft Nudge), meaning they execute only conditionally when the user repeatedly overrides the base intervention. This accurately reflects the progressive, non-mandatory escalation architecture of the friction ladder.
+
+Unique platform video ID extracted from DOM or SHA-256 hash of canonical media URL.
+
+Target social platform: | | | | .
+
+Unix epoch timestamp (milliseconds) when playback entered the active 60%+ viewport.
+
+Unix epoch timestamp (milliseconds) when playback ceased or viewport area fell below 60%.
+
+Computed active watch interval: endTime - startTime. Excludes tab-blur pause intervals.
+
+Set TRUE if clip was watched to >= 90% of total video.duration before viewport exit.
+
+Set TRUE if clip was abandoned within < 3000 ms of viewport entry (rapid-swipe indicator).
+
+8.3. Database Design & Relational Data Schema
+
+Hybrid Client-Side Persistence Architecture: ScrollGuard implements a two-tier, fully client-side persistence model that intentionally avoids any cloud server dependency. High-frequency, append-only video event telemetry is stored in the browser
+
+Table 8.1: Data Dictionary - VIDEO_EVENT Entity (Primary IndexedDB Object Store)
+
+Table 8.1 Description: The VIDEO_EVENT store captures atomic, indivisible records representing a single continuous video playback window. Each record is keyed by videoId (surrogate platform identifier) combined with startTime (epoch milliseconds) to form a naturally unique composite primary key, since the same video may be rewatched within a single session.
+
+BCNF Normalization Analysis: All non-key attributes in VIDEO_EVENT -- specifically watchDurationMs , completed , skipped , and platform -- are in full functional dependency on the composite primary key (videoId, startTime) . No partial key dependencies or transitive functional dependencies exist within this entity, confirming that the schema satisfies Third Normal Form (3NF) and Boyce-Codd Normal Form (BCNF).
+
+Indexing Strategy: A secondary B-tree index is automatically maintained on the startTime field to support efficient time-range queries. The web analytics dashboard queries VIDEO_EVENT filtered by a 7-day or 30-day time range using IDBKeyRange.bound(startEpoch, endEpoch) , returning results in under 10 milliseconds on standard consumer hardware.
+
+Cryptographically random UUID v4 string uniquely identifying a continuous browsing session.
+
+The social media platform (youtube | instagram | facebook | tiktok | x) for this session.
+
+Unix epoch timestamp of first video playback event detected in this session window.
+
+Unix epoch timestamp of the last recorded video event before the 90-second inactivity timeout.
+
+Total number of discrete video clips watched during this continuous session window.

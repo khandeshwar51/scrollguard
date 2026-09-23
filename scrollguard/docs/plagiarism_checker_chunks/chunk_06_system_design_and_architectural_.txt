@@ -1,0 +1,62 @@
+[SYSTEM DESIGN & ARCHITECTURAL MODELING]
+Cumulative active playback duration in milliseconds across all video events in session.
+
+Ordered JSON array of child VideoEvent telemetry records nested within this session.
+
+8.3. Database Design (Continued: Session Lifecycle Persistence Schema)
+
+Session Demarcation via Inactivity Heuristics: A browsing session in ScrollGuard is defined as a continuous, uninterrupted period of short-form video consumption on a single platform. Session boundaries are detected using a 90-second inactivity heuristic: if the background service worker receives no RECORD_VIDEO_EVENT message for 90 seconds, it invokes closeSession() , which seals the session record and flushes it to the SESSION_LOG IndexedDB object store.
+
+Table 8.2: Data Dictionary - SESSION_LOG Entity (Secondary IndexedDB Object Store)
+
+Session Aggregation Pipeline: When closeSession() is called, the service worker computes derived fields: videoCount is set to the total length of the videoEvents array; totalWatchMs is the sum of all child watchDurationMs values; endTime is assigned from the final VideoEvent
+
+Session Indexing for Dashboard Queries: A compound secondary index on (platform, startTime) supports filtered platform-specific session history queries. The 7x24 circadian heatmap in the analytics dashboard groups sessions by new Date(startTime).getHours() and sums their totalWatchMs values per hour, rendering in under 15ms for 30-day data windows.
+
+Storage Quota Management: IndexedDB on Chromium browsers enforces per-origin storage quotas (typically 60% of available disk space). ScrollGuard implements a rolling data retention policy: sessions older than 90 days are eligible for automatic pruning via the background service worker
+
+ISO 8601 calendar date string (YYYY-MM-DD) representing the 24-hour recording window.
+
+Cumulative clips watched across all 5 platform content scripts today.
+
+Total active watch duration in milliseconds summed across all platform sessions.
+
+Platform-keyed map: { youtube: { count, time }, instagram: { count, time }, ... }.
+
+24-bucket hourly histogram: { : totalWatchMs, : ..., : ... }.
+
+TRUE if Stage 1 Soft Nudge has been acknowledged and overridden today.
+
+Number of Stage 4 compulsory break lockouts triggered today. Used for duration scaling.
+
+Clip count at which Stage 1 override was confirmed. Used to compute ladder delta thresholds.
+
+8.3. Database Design (Continued: Daily Aggregate & Escalation State)
+
+Synchronous Cache Layer Design: While raw session and video event telemetry is persisted asynchronously in IndexedDB, the daily aggregate totals and escalation state flags are cached in chrome.storage.local , which provides fully synchronous read access via the chrome.storage.onChanged event listener. This ensures that the React widget receives instantaneous state updates without awaiting IndexedDB promise chains during high-velocity swiping.
+
+Table 8.3: Data Dictionary - DAILY_AGGREGATE & ESCALATION_STATE (chrome.storage.local)
+
+Midnight Rollover Architecture: The background service worker monitors the system clock via chrome.alarms.create({ periodInMinutes: 1 }) . On each alarm tick, it evaluates new Date().toISOString().slice(0, 10) against the stored date field. Upon detecting a calendar day transition (midnight rollover), the worker atomically: (1) archives the current DAILY_AGGREGATE to IndexedDB as a historical record; (2) initializes a fresh aggregate with all counters set to zero; (3) resets all ESCALATION_STATE flags to their initial values; and (4) resets the in-memory session tracker.
+
+Write Atomicity Guarantee: Both chrome.storage.local.set() operations -- updating the daily aggregate and resetting escalation state -- are batched into a single storage transaction object, ensuring they either both commit or both fail. This prevents partial-write race conditions where the aggregate might be reset while the escalation state retains stale override thresholds from the previous day.
+
+8.4. Activity Diagram (Swimlane Behavioral Workflow)
+
+Three-Swimlane Execution Model: The Activity Diagram maps the complete behavioral workflow of ScrollGuard across three formal UML swimlanes, each representing a distinct execution environment: (1) Client Viewport -- User / Host DOM , encompassing human user gestures and the host page
+
+Figure 8.3: UML Activity Diagram - Three-Swimlane Behavioral Workflow & Escalation Decision Points.
+
+Decision Diamond Analysis: Two decision diamonds govern the primary execution flow. The first diamond evaluates totalVideosWatched >= videoLimit : if false (No branch), the badge count updates and the loop continues. If true (Yes branch), the Stage 1 Soft Nudge activates. The second diamond evaluates the user I terminates the session (end state), while selecting triggers the progressive friction ladder escalation sub-process.
+
+Parallel Processing across Swimlanes: The content script swimlane and the background worker swimlane operate concurrently across separate OS-level processes (the Chromium renderer process and the extension service worker process). Data flows between swimlanes via chrome.runtime.sendMessage() and chrome.storage.onChanged reactive listeners, ensuring data consistency without shared-memory race conditions.
+
+8.5. Sequence Diagram (Inter-Object Message Chronology)
+
+Chronological Message Flow Analysis: The UML Sequence Diagram documents the precise temporal ordering of message exchanges between five system objects: the User , the Host Web DOM (YouTube Shorts / Instagram Reels viewport), the Content Script & Shadow Root (React widget layer), the Background Service Worker , and the IndexedDB / Local Storage persistence tier. Dashed return arrows represent asynchronous callbacks; solid arrows represent direct synchronous invocations.
+
+Figure 8.4: UML Sequence Diagram - Chronological Message Exchange & Hard Scroll-Lock Enforcement.
+
+Message 3 -- Runtime Message Routing: When the Content Script RECORD_EVENT s execution thread is not blocked while the background worker persists data to IndexedDB.
+
+Message 5 -- Reactive Storage Event (Dashed Arrow): After the background worker updates chrome.storage.local with the new totalVideos count, the browser dispatches a chrome.storage.onChanged event to all registered listeners. The content script s React state update. Messages 6 and 7 follow synchronously within the same event loop tick: video playback is paused and the Stage 1 modal is rendered.

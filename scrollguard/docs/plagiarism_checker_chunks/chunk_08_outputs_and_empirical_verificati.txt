@@ -1,0 +1,62 @@
+[OUTPUTS & EMPIRICAL VERIFICATION]
+10.4. Stage 3 Compulsory 60-Second Guided 4-7-8 Breathing Space Reset
+
+Somatic Intervention for Autonomic Regulation: Stage 3 activates when cumulative post-nudge consumption reaches +8 videos beyond the base limit. The modal delivers a compulsory 60-second guided breathing session based on the clinically validated 4-7-8 breathing technique developed by Dr. Andrew Weil, which is documented to activate the parasympathetic nervous system, reduce cortisol levels, and lower resting heart rates within 60 to 90 seconds of consistent practice.
+
+Figure 10.4: Stage 3 Guided 4-7-8 Somatic Breathing Reset Modal with Live SVG Countdown Animation.
+
+SVG Breathing Animation Architecture: The animated breathing orb is implemented as an SVG circle whose r (radius) attribute is driven by a setInterval -based breathing phase state machine. The radius oscillates from minimum (inhale phase: 4 seconds, r expands) through maximum (hold phase: 7 seconds, r static at maximum) to minimum (exhale phase: 8 seconds, r contracts). A live countdown display subtracts elapsed seconds from 60, providing users with temporal orientation during the mandated pause.
+
+Neuroscientific Basis: The extended 8-second exhalation phase is specifically designed to stimulate the vagus nerve via diaphragmatic breathing. Vagal tone activation triggers acetylcholine release, which directly antagonizes dopamine arousal circuits in the mesolimbic pathway. This creates a genuine physiological deceleration of the compulsive scrolling urge, not merely a time-delay barrier.
+
+10.5. Stage 4 Compulsory Fullscreen Takeover Break Lockout Screen
+
+Maximum Friction Intervention - Compulsory Timed Lockout: Stage 4 is the apex of the Progressive Friction Ladder, activating when cumulative post-nudge consumption reaches +11 videos beyond the base limit. A fullscreen overlay occupying 100% of the viewport (z-index: 99999999) completely obscures the social media feed. All scroll, keyboard, touch, and pointer inputs are intercepted in the capture phase. The lockout cannot be dismissed by the user -- only the timer countdown can release it.
+
+Figure 10.5: Stage 4 Fullscreen Compulsory Break Lockout Screen with Scaled Duration Countdown.
+
+Exponential Scaling Formula: The lockout duration follows the formula: duration_seconds = min(60 + (takeoverCount - 1) * 60, 300) . The first Stage 4 lockout enforces a 60-second break. Each subsequent Stage 4 trigger within the same calendar day adds an additional 60 seconds, with a hard ceiling of 300 seconds (5 minutes). This exponential resistance curve makes sustained compulsive doomscrolling progressively unsustainable without permanently blocking access to legitimate content consumption.
+
+Session State Preservation: During the Stage 4 lockout, the active browser tab remains open and the host web page session is not terminated. When the countdown expires, the fullscreen overlay dissolves and the user may resume browsing with a freshly incremented override threshold (+5 clips before next escalation). The tab context (video position, feed scroll position) is preserved to prevent frustrating UX disruption.
+
+10.6. Chrome Extension Popup Analytics Dashboard & Dopamine Gauge
+
+Instant Behavioral Telemetry Access: The ScrollGuard browser action popup provides a comprehensive at-a-glance behavioral telemetry dashboard accessible within one click from the Chrome extension toolbar. The popup is rendered as a React 18 component tree injected into the Chrome extension
+
+Figure 10.6: Chrome Extension Action Popup - (Left) In-Context Feed Trigger; (Right) High-Resolution Telemetry Cockpit.
+
+Dopamine Impact Score Visualization: The popup features a prominent circular gauge displaying the real-time 6-Factor Dopamine Score (range 0-100). The score is computed by DopamineEngine.calculateDopamineScore() using six independent behavioral signals: (1) daily video count ratio; (2) waking-hours break frequency; (3) circadian late-night ratio (post-22:00 consumption); (4) average watch duration per clip; (5) skip-to-complete ratio (impulsive switching indicator); and (6) cross-platform simultaneous usage factor.
+
+Per-Platform Budget Progress Bars: Four platform-specific horizontal progress bars (YouTube, Instagram, Facebook, TikTok) display each platform
+
+10.7. Full-Screen Web Analytics Cockpit & Circadian Activity Heatmaps
+
+Longitudinal Behavioral Analytics Interface: The standalone Web Analytics Cockpit is a full-screen React 18 single-page application served from the extension
+
+Figure 10.7: Standalone Web Analytics Cockpit - Circadian Heatmaps, AI Coach & Historical Trends.
+
+Circadian Activity Heatmap Architecture: The 7x24 calendar heatmap renders a grid where rows represent days of the week (Monday to Sunday) and columns represent hours of the day (00:00 to 23:00). Each cell
+
+Groq AI Behavioral Coach Integration: The cockpit integrates the Groq LLM API (LLaMA 3 backend) via a locally hosted Node.js Express proxy server on localhost:5000 . The AI coach receives a structured behavioral summary JSON payload containing 14-day aggregate statistics and generates personalized, empathetic behavioral insights and habit modification recommendations. All AI inference remains fully optional -- the core doomscrolling prevention functionality operates independently of the backend server.
+
+Draggable overlay showing clip count. Three avatar states: Happy (cream) / Worried (amber) / Zombie (red).
+
++5 clips beyond base limit (overrideStartClips + 5)
+
+Text input requiring min. 5 characters written intention to unlock the Continue action.
+
++8 clips beyond base limit (overrideStartClips + 8)
+
+60-second 4-7-8 guided breathing session with animated pulsating SVG orb and live countdown.
+
++11 clips; repeats every +5 clips thereafter
+
+Compulsory break: 60s to 300s scaled. Videos paused, scroll & keyboard hard-locked.
+
+Dark telemetry popup: clip count, watch time, Dopamine gauge (0-100), per-platform budget bars.
+
+Navigating to the dashboard endpoint URL
+
+7x24 circadian heatmaps, platform distributions, session timelines, Groq AI behavioral coach.
+
+10.8. User Interface Architecture & Operational Workflow Summary

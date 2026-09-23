@@ -1,0 +1,48 @@
+[SYNOPSIS & PROBLEM FORMULATION]
+Official Project Nomenclature: "SCROLLGUARD: REAL-TIME ANTI-DOOMSCROLLING AND PROGRESSIVE COGNITIVE FRICTION PLATFORM" . Engineered as an autonomous, full-stack digital wellbeing ecosystem designed for high-precision short-form video playback interception, sub-second client-side telemetry analysis, mathematical dopamine habit-loop formulation, isolated Shadow DOM progressive friction intervention, and privacy-first local IndexedDB aggregation.
+
+In modern digital computing ecosystems, algorithmic short-form media platforms—predominantly YouTube Shorts, Instagram Reels, Facebook Reels, and TikTok—have emerged as dominant instruments of behavioral engagement. These platforms utilize sophisticated multi-armed bandit recommendation algorithms optimized explicitly for continuous attentional capture and session prolongation. By delivering hyper-personalized, 15-to-60-second video stimuli on a continuous infinite-scroll layout without natural stopping cues, these platforms trigger repetitive, micro-burst dopamine spikes.
+
+In cognitive neuroscience and behavioral economics, this phenomenon is categorized under Variable-Ratio Reinforcement Schedules (B.F. Skinner). Because users cannot predict whether the subsequent video swipe will yield an entertaining, shocking, or neutral cognitive reward, the brain
+
+The primary motivation for developing ScrollGuard is the urgent necessity for a non-punitive, mathematically transparent, and psychologically grounded cognitive intervention framework . Commercial screen-time utilities treat digital devices as adversaries, creating sudden abrupt lockouts that provoke user reactance and immediate uninstallation.
+
+Within the academic curriculum of the Bachelor of Science in Computer Science (SEM-V) at Vidyavardhini's A. V. College of Arts, K. M. College of Commerce, E. S. A. College of Science (Affiliated to the University of Mumbai) , this project demonstrates the practical convergence of advanced computer science disciplines: asynchronous Chrome Extension Manifest V3 Service Workers, native IntersectionObserver viewport telemetry, isolated W3C Shadow DOM rendering, deterministic statistical dopamine modeling, and client-side IndexedDB persistence.
+
+5.3.1. Short-Form Video Algorithmic Scope & Interception Boundaries
+
+Modern social media feeds operate across distinct single-page application (SPA) architectures with virtualized DOM node recycling. On YouTube Shorts ( /shorts ) and Instagram Reels ( /reels ), media containers are destroyed and recreated on the fly. ScrollGuard addresses these dynamics through MutationObserver hooks and capture-phase event interception, providing verifiable, reproducible attentional regulation without modifying host web server assets.
+
+Contemporary internet users and students encounter four critical structural hurdles when regulating short-form digital consumption:
+
+1. Frictionless Infinite Feed Geometry: Modern feeds eliminate pagination, end-of-page indicators, and navigation thresholds. Swiping requires sub-100 millisecond physical effort, allowing users to consume dozens of clips without conscious cognitive awareness.
+
+2. Binary All-or-Nothing Application Blockers: Existing screen-time blockers terminate access completely when a daily limit expires. This aggressive approach leads to high abandonment rates, as users require access to communication platforms (Instagram DMs, YouTube educational channels) without wanting infinite reel rabbit holes.
+
+3. Absence of Real-Time Attentional Feedback: While doomscrolling, users receive zero ambient signals regarding time elapsed, clips watched, or pacing velocity. The passage of physical time is masked by immersive full-screen viewports.
+
+4. Data Privacy Exploitation: Third-party productivity extensions frequently harvest user browsing histories, video URLs, and personal identifiers, transmitting them to external analytics servers without explicit user consent.
+
+5.5. Core Objectives of the Project
+
+ScrollGuard is engineered to achieve the following specific, measurable technical objectives:
+
+• Multi-Platform Native Interception: Deploy tailored content scripts across YouTube Shorts ( /shorts ), Instagram Reels ( /reels ), Facebook Reels ( /reel ), TikTok, and X feeds with automated route detection. • Sub-Viewport Telemetry Tracking: Utilize IntersectionObserver with a 0.6 threshold to track active, focused video playback intervals while ignoring background, paused, or off-screen media. • Ambient Cognitive Biofeedback: Render a draggable, compact pill badge displaying live video counts and emotional Brain Avatar states (Happy -> Worried -> Zombie) inside an isolated Shadow DOM container. • 4-Stage Progressive Escalation Ladder: Automatically transition through calibrated psychological resistance levels when daily budgets are exceeded: Stage 1 (Soft Nudge), Stage 2 (Intention Wall), Stage 3 (Breathing Space), and Stage 4 (Compulsory Break). • Event-Capture Hard Scroll-Locking: Intercept mouse wheel, touch gestures, and keyboard navigation keys during active modal states, simultaneously enforcing automatic media pause. • Mathematical Dopamine Indexing: Evaluate session streams against a 6-factor deterministic scoring model (0 - 100). • Zero-Telemetry Local Persistence: Store all high-frequency video events locally in browser IndexedDB. • Interactive Analytics Web Cockpit: Provide a responsive dashboard featuring calendar heatmaps and behavioral coaching.
+
+5.5.1. Cognitive Discipline & Behavioral Psychology Foundations
+
+Empirical research in dual-process cognitive psychology (Daniel Kahneman) demonstrates that infinite scrolling is mediated by automatic, unconscious System 1 heuristic impulses. By deliberately introducing calibrated physical and temporal friction (typing an intention, waiting out a somatic breathing cycle), ScrollGuard forces a rapid cognitive shift toward deliberate System 2 reflective reasoning, disrupting the dopamine habit loop at its neurological origin.
+
+Chrome Manifest V3 provides secure isolated execution sandboxes. Modern W3C APIs (IntersectionObserver, ShadowRoot, IndexedDB) are universally supported across Chromium engines with sub-millisecond execution overhead.
+
+The platform operates through modern web browsers with zero client-side installation. Default limits (40 clips / 30 mins) engage automatically. The UI is embedded directly into the active viewport.
+
+The entire technology stack is 100% open-source (React 18, Vite, Lucide, Tailwind CSS, Vitest) under MIT/BSD/Apache licenses. Zero paid API subscriptions are incurred during operation.
+
+Project development was executed across structured academic milestones: Weeks 1-4 (Research), Weeks 5-8 (Core Extension), Weeks 9-12 (Escalation Engine), Weeks 13-16 (Testing & Dashboard).
+
+Modern feeds switch URLs without full reloads.
+
+Coupled listeners across popstate and safety interval maintain reactive state.
+
+Host page CSS styles can break extension modals.

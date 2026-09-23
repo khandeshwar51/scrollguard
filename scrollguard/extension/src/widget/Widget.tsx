@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Shield, ChevronRight, AlertTriangle, Minimize2 } from 'lucide-react';
 
 /**
@@ -113,30 +113,8 @@ function ZombieBrainSVG({ size = 26 }: { size?: number }) {
   );
 }
 
-/** Component supporting custom animated GIF/PNG files if available in public folder, with fallback to SVGs */
+/** Clean, sharp SVG Brain Avatar for stages 1, 2, and 3 */
 function BrainAvatar({ stage, size = 26 }: { stage: 1 | 2 | 3; size?: number }) {
-  const [imgError, setImgError] = useState(false);
-
-  const customSrc = (() => {
-    try {
-      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL) {
-        return chrome.runtime.getURL(`brain_stage${stage}.gif`);
-      }
-    } catch (_) {}
-    return null;
-  })();
-
-  if (customSrc && !imgError) {
-    return (
-      <img
-        src={customSrc}
-        alt={`Brain Stage ${stage}`}
-        style={{ width: `${size}px`, height: `${size}px`, objectFit: 'contain' }}
-        onError={() => setImgError(true)}
-      />
-    );
-  }
-
   if (stage === 1) return <HappyBrainSVG size={size} />;
   if (stage === 2) return <SadBrainSVG size={size} />;
   return <ZombieBrainSVG size={size} />;
@@ -216,6 +194,11 @@ function BrainPillBadge({
   );
 }
 
+const getTodayDateString = (): string => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 const getPlatform = (): string => {
   const host = window.location.hostname;
   if (host.includes('youtube.com')) return 'youtube';
@@ -226,6 +209,43 @@ const getPlatform = (): string => {
   return 'generic';
 };
 
+const isShortsRoute = (): boolean => {
+  const path = window.location.pathname;
+  const host = window.location.hostname;
+  if (host.includes('youtube.com')) {
+    return path.startsWith('/shorts');
+  }
+  if (host.includes('instagram.com')) {
+    return path.includes('/reels') || path.includes('/reel');
+  }
+  if (host.includes('facebook.com')) {
+    return path.includes('/reel');
+  }
+  if (host.includes('tiktok.com')) {
+    return true;
+  }
+  if (host.includes('x.com') || host.includes('twitter.com')) {
+    return path.includes('/status/');
+  }
+  return false;
+};
+
+const isShortVideoPlaying = (): boolean => {
+  if (document.visibilityState !== 'visible') return false;
+  if (!isShortsRoute()) return false;
+
+  const host = window.location.hostname;
+  if (host.includes('youtube.com')) {
+    const activeSlide = document.querySelector('ytd-reel-video-renderer[is-active]');
+    const activeVideo = activeSlide
+      ? (activeSlide.querySelector('video') as HTMLVideoElement | null)
+      : (window.location.pathname.startsWith('/shorts') ? (document.querySelector('video') as HTMLVideoElement | null) : null);
+    return !!activeVideo && !activeVideo.paused && !activeVideo.ended && activeVideo.readyState >= 2;
+  }
+  const videos = Array.from(document.querySelectorAll('video'));
+  return videos.some((v) => !v.paused && !v.ended && v.readyState >= 2 && v.offsetWidth > 100);
+};
+
 export default function Widget() {
   const platform = getPlatform();
 
@@ -234,12 +254,42 @@ export default function Widget() {
   const [dismissed, setDismissed] = useState(false);
 
   // Stats and limits loaded from local chrome storage
-  const [stats, setStats] = useState({ videos: 0, timeMs: 0 });
+  const [stats, setStats] = useState({ date: getTodayDateString(), videos: 0, timeMs: 0 });
   const [videoLimit, setVideoLimit] = useState(40);
   const [_timeLimit, setTimeLimit] = useState(30);
 
-  // Live session timer
+  // Live session timer in seconds
   const [sessionSecs, setSessionSecs] = useState(0);
+
+  // Track whether user is currently on a short-form video route (Shorts / Reels)
+  const [isOnShorts, setIsOnShorts] = useState(() => isShortsRoute());
+
+  useEffect(() => {
+    const updateRoute = () => {
+      setIsOnShorts(isShortsRoute());
+    };
+
+    window.addEventListener('popstate', updateRoute);
+    window.addEventListener('hashchange', updateRoute);
+    window.addEventListener('yt-navigate-finish', updateRoute);
+    window.addEventListener('yt-page-data-updated', updateRoute);
+
+    const interval = setInterval(updateRoute, 500);
+
+    return () => {
+      window.removeEventListener('popstate', updateRoute);
+      window.removeEventListener('hashchange', updateRoute);
+      window.removeEventListener('yt-navigate-finish', updateRoute);
+      window.removeEventListener('yt-page-data-updated', updateRoute);
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Refs for tracking in interval without stale closures
+  const activeWatchSecsRef = useRef(0);
+  const statsRef = useRef(stats);
+  statsRef.current = stats;
+  const currentDateRef = useRef(getTodayDateString());
 
   // Dragging coordinates
   const [position, setPosition] = useState(() => {
@@ -266,39 +316,8 @@ export default function Widget() {
   const [nudgeCleared, setNudgeCleared] = useState(false);
   const [reasonCleared, setReasonCleared] = useState(false);
   const [breatheCleared, setBreatheCleared] = useState(false);
-
-  // Session start time for synchronization
-  const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
-
-  // Helper to ensure session has started and storage contains session_start_time
-  const ensureSessionStarted = async () => {
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      const stored = await chrome.storage.local.get(`session_start_${platform}`);
-      const storedStart = stored[`session_start_${platform}`];
-      if (typeof storedStart === 'number') {
-        setSessionStartTime(storedStart);
-        setSessionSecs(Math.max(0, Math.floor((Date.now() - storedStart) / 1000)));
-      } else {
-        const now = Date.now();
-        await chrome.storage.local.set({ [`session_start_${platform}`]: now });
-        setSessionStartTime(now);
-        setSessionSecs(0);
-      }
-    } else {
-      const startKey = `session_start_${platform}`;
-      const storedStartVal = localStorage.getItem(startKey);
-      if (storedStartVal) {
-        const storedStart = parseInt(storedStartVal, 10);
-        setSessionStartTime(storedStart);
-        setSessionSecs(Math.max(0, Math.floor((Date.now() - storedStart) / 1000)));
-      } else {
-        const now = Date.now();
-        localStorage.setItem(startKey, now.toString());
-        setSessionStartTime(now);
-        setSessionSecs(0);
-      }
-    }
-  };
+  const [takeoverCount, setTakeoverCount] = useState(0);
+  const [takeoverBaseClips, setTakeoverBaseClips] = useState(0);
 
   // Helper to update escalation state locally and globally in storage
   const updateEscalationState = async (updates: {
@@ -308,6 +327,8 @@ export default function Widget() {
     overrideStartClips?: number;
     overrideStartTime?: number;
     hasExceededLimits?: boolean;
+    takeoverCount?: number;
+    takeoverBaseClips?: number;
   }) => {
     const newState = {
       nudgeCleared: updates.nudgeCleared !== undefined ? updates.nudgeCleared : nudgeCleared,
@@ -316,6 +337,8 @@ export default function Widget() {
       overrideStartClips: updates.overrideStartClips !== undefined ? updates.overrideStartClips : overrideStartClips,
       overrideStartTime: updates.overrideStartTime !== undefined ? updates.overrideStartTime : overrideStartTime,
       hasExceededLimits: updates.hasExceededLimits !== undefined ? updates.hasExceededLimits : hasExceededLimits,
+      takeoverCount: updates.takeoverCount !== undefined ? updates.takeoverCount : takeoverCount,
+      takeoverBaseClips: updates.takeoverBaseClips !== undefined ? updates.takeoverBaseClips : takeoverBaseClips,
     };
 
     if (updates.nudgeCleared !== undefined) setNudgeCleared(updates.nudgeCleared);
@@ -324,6 +347,8 @@ export default function Widget() {
     if (updates.overrideStartClips !== undefined) setOverrideStartClips(updates.overrideStartClips);
     if (updates.overrideStartTime !== undefined) setOverrideStartTime(updates.overrideStartTime);
     if (updates.hasExceededLimits !== undefined) setHasExceededLimits(updates.hasExceededLimits);
+    if (updates.takeoverCount !== undefined) setTakeoverCount(updates.takeoverCount);
+    if (updates.takeoverBaseClips !== undefined) setTakeoverBaseClips(updates.takeoverBaseClips);
 
     const escKey = `escalation_${platform}`;
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
@@ -333,77 +358,128 @@ export default function Widget() {
     }
   };
 
-  // Timers for breathing (20s) and takeover (60s)
-  const [breathTimer, setBreathTimer] = useState(20);
+  // Timers for breathing (60s) and takeover (dynamic: 60s -> 5m -> 10m -> 15m)
+  const [breathTimer, setBreathTimer] = useState(60);
   const [breathPhase, setBreathPhase] = useState<'Inhale' | 'Hold' | 'Exhale'>('Inhale');
   const [takeoverTimer, setTakeoverTimer] = useState(60);
 
   // 1. Storage reader & listener
   useEffect(() => {
     const loadStatsAndLimits = async () => {
+      const todayStr = getTodayDateString();
+      currentDateRef.current = todayStr;
+
       if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
         const stored = (await chrome.storage.local.get([
           'today_stats',
           'daily_video_limit',
           'daily_time_limit_mins',
-          `session_start_${platform}`,
           `escalation_${platform}`,
+          'timer_reset_v3',
         ])) as any;
-        if (stored.today_stats) setStats(stored.today_stats as any);
+
+        // Reset if new day (24hrs) OR if user requested reset (timer_reset_v3)
+        if (!stored.timer_reset_v3 || !stored.today_stats || stored.today_stats.date !== todayStr) {
+          const freshStats = { date: todayStr, videos: 0, timeMs: 0, sessions: 0 };
+          setStats(freshStats);
+          setSessionSecs(0);
+          activeWatchSecsRef.current = 0;
+          await chrome.storage.local.set({
+            today_stats: freshStats,
+            timer_reset_v3: true,
+          });
+          const allData = await chrome.storage.local.get(null);
+          const legacyKeys = Object.keys(allData).filter((k) => k.startsWith('session_start_') || k.startsWith('escalation_') || k.startsWith('aggregate_'));
+          if (legacyKeys.length > 0) {
+            await chrome.storage.local.remove(legacyKeys);
+          }
+        } else {
+          setStats(stored.today_stats);
+          setSessionSecs(Math.floor((stored.today_stats.timeMs || 0) / 1000));
+        }
+
         if (typeof stored.daily_video_limit === 'number') setVideoLimit(stored.daily_video_limit);
         if (typeof stored.daily_time_limit_mins === 'number') setTimeLimit(stored.daily_time_limit_mins);
 
         // Load escalation state
         const storedEscalation = stored[`escalation_${platform}`];
-        if (storedEscalation) {
+        const currentVideos = stored.today_stats?.videos ?? 0;
+        const currentLimit = typeof stored.daily_video_limit === 'number' ? stored.daily_video_limit : 40;
+
+        // If user is below limit or videos is 0, any stored escalation is stale and must be cleared!
+        if (currentVideos < currentLimit || currentVideos === 0) {
+          setNudgeCleared(false);
+          setReasonCleared(false);
+          setBreatheCleared(false);
+          setOverrideStartClips(0);
+          setOverrideStartTime(0);
+          setHasExceededLimits(false);
+          setTakeoverCount(0);
+          setTakeoverBaseClips(0);
+          if (storedEscalation) {
+            await chrome.storage.local.remove(`escalation_${platform}`);
+          }
+        } else if (storedEscalation) {
           setNudgeCleared(storedEscalation.nudgeCleared ?? false);
           setReasonCleared(storedEscalation.reasonCleared ?? false);
           setBreatheCleared(storedEscalation.breatheCleared ?? false);
           setOverrideStartClips(storedEscalation.overrideStartClips ?? 0);
           setOverrideStartTime(storedEscalation.overrideStartTime ?? 0);
           setHasExceededLimits(storedEscalation.hasExceededLimits ?? false);
+          setTakeoverCount(storedEscalation.takeoverCount ?? 0);
+          setTakeoverBaseClips(storedEscalation.takeoverBaseClips ?? 0);
         }
       } else {
-        // Fallback for non-extension environment
-        const escKey = `escalation_${platform}`;
-        const storedEscalationVal = localStorage.getItem(escKey);
-        if (storedEscalationVal) {
-          const storedEscalation = JSON.parse(storedEscalationVal);
-          setNudgeCleared(storedEscalation.nudgeCleared ?? false);
-          setReasonCleared(storedEscalation.reasonCleared ?? false);
-          setBreatheCleared(storedEscalation.breatheCleared ?? false);
-          setOverrideStartClips(storedEscalation.overrideStartClips ?? 0);
-          setOverrideStartTime(storedEscalation.overrideStartTime ?? 0);
-          setHasExceededLimits(storedEscalation.hasExceededLimits ?? false);
-        }
+        const freshStats = { date: todayStr, videos: 0, timeMs: 0, sessions: 0 };
+        setStats(freshStats);
+        setSessionSecs(0);
       }
-
-      // Load or initialize session start time
-      await ensureSessionStarted();
     };
     loadStatsAndLimits();
 
     const handleStorageChange = (changes: Record<string, any>) => {
       if (changes.today_stats && changes.today_stats.newValue) {
-        setStats(changes.today_stats.newValue);
+        const newStats = changes.today_stats.newValue;
+        setStats(newStats);
+        activeWatchSecsRef.current = 0;
+        setSessionSecs(Math.floor((newStats.timeMs || 0) / 1000));
+        // If videos reset to 0, clear all escalation state
+        if ((newStats.videos ?? 0) === 0) {
+          setHasExceededLimits(false);
+          setNudgeCleared(false);
+          setReasonCleared(false);
+          setBreatheCleared(false);
+          setOverrideStartClips(0);
+          setOverrideStartTime(0);
+          setTakeoverCount(0);
+          setTakeoverBaseClips(0);
+          setFocusState('idle');
+          if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+            chrome.storage.local.remove(`escalation_${platform}`);
+          }
+        }
       }
       if (changes.daily_video_limit && typeof changes.daily_video_limit.newValue === 'number') {
-        setVideoLimit(changes.daily_video_limit.newValue);
+        const newLimit = changes.daily_video_limit.newValue;
+        setVideoLimit(newLimit);
+        // If current watched count is now below the new limit, reset escalation
+        if ((statsRef.current?.videos ?? 0) < newLimit) {
+          setHasExceededLimits(false);
+          setNudgeCleared(false);
+          setReasonCleared(false);
+          setBreatheCleared(false);
+          setOverrideStartClips(0);
+          setOverrideStartTime(0);
+          setTakeoverCount(0);
+          setTakeoverBaseClips(0);
+          setFocusState('idle');
+          if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+            chrome.storage.local.remove(`escalation_${platform}`);
+          }
+        }
       }
       if (changes.daily_time_limit_mins && typeof changes.daily_time_limit_mins.newValue === 'number') {
         setTimeLimit(changes.daily_time_limit_mins.newValue);
-      }
-
-      // Sync session start time changes
-      const sessionStartChange = changes[`session_start_${platform}`];
-      if (sessionStartChange) {
-        if (typeof sessionStartChange.newValue === 'number') {
-          setSessionStartTime(sessionStartChange.newValue);
-          setSessionSecs(Math.max(0, Math.floor((Date.now() - sessionStartChange.newValue) / 1000)));
-        } else {
-          setSessionStartTime(null);
-          setSessionSecs(0);
-        }
       }
 
       // Sync escalation state changes
@@ -417,6 +493,8 @@ export default function Widget() {
           setOverrideStartClips(val.overrideStartClips ?? 0);
           setOverrideStartTime(val.overrideStartTime ?? 0);
           setHasExceededLimits(val.hasExceededLimits ?? false);
+          setTakeoverCount(val.takeoverCount ?? 0);
+          setTakeoverBaseClips(val.takeoverBaseClips ?? 0);
         } else {
           setNudgeCleared(false);
           setReasonCleared(false);
@@ -424,6 +502,8 @@ export default function Widget() {
           setOverrideStartClips(0);
           setOverrideStartTime(0);
           setHasExceededLimits(false);
+          setTakeoverCount(0);
+          setTakeoverBaseClips(0);
         }
       }
     };
@@ -434,47 +514,44 @@ export default function Widget() {
     }
   }, [platform]);
 
-  // 1b. Active tab interaction check to restore/start session start time
-  useEffect(() => {
-    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-    const handleInteraction = () => {
-      if (debounceTimer) return;
-      debounceTimer = setTimeout(() => {
-        ensureSessionStarted();
-        debounceTimer = null;
-      }, 1000); // Debounce to once per second
-    };
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        ensureSessionStarted();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibility);
-    window.addEventListener('scroll', handleInteraction, { passive: true });
-    window.addEventListener('click', handleInteraction, { passive: true });
-    window.addEventListener('keydown', handleInteraction, { passive: true });
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibility);
-      window.removeEventListener('scroll', handleInteraction);
-      window.removeEventListener('click', handleInteraction);
-      window.removeEventListener('keydown', handleInteraction);
-      if (debounceTimer) clearTimeout(debounceTimer);
-    };
-  }, [platform]);
-
-  // 2. Incremental live session timer
+  // 2. Incremental live watch timer - ONLY counts while actively watching a Short/Reel video
   useEffect(() => {
     const timer = setInterval(() => {
-      if (sessionStartTime) {
-        setSessionSecs(Math.max(0, Math.floor((Date.now() - sessionStartTime) / 1000)));
-      } else {
+      const todayStr = getTodayDateString();
+
+      // 24-Hour / Midnight reset check
+      if (todayStr !== currentDateRef.current) {
+        console.log(`[ScrollGuard] 24-hour rollover detected (${todayStr}). Resetting timer and reels count.`);
+        currentDateRef.current = todayStr;
+        activeWatchSecsRef.current = 0;
+        const freshStats = { date: todayStr, videos: 0, timeMs: 0, sessions: 0 };
+        setStats(freshStats);
         setSessionSecs(0);
+        setHasExceededLimits(false);
+        setNudgeCleared(false);
+        setReasonCleared(false);
+        setBreatheCleared(false);
+        setTakeoverCount(0);
+        setTakeoverBaseClips(0);
+        setFocusState('idle');
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+          chrome.storage.local.set({ today_stats: freshStats });
+          chrome.storage.local.remove([`session_start_${platform}`, `escalation_${platform}`]);
+        }
+        return;
       }
+
+      // Live counting only when actively playing a short/reel video
+      if (isShortVideoPlaying()) {
+        activeWatchSecsRef.current += 1;
+        const baseSecs = Math.floor((statsRef.current.timeMs || 0) / 1000);
+        setSessionSecs(baseSecs + activeWatchSecsRef.current);
+      }
+      // When not watching (on homepage, regular video, paused): timer stays paused without incrementing
     }, 1000);
+
     return () => clearInterval(timer);
-  }, [sessionStartTime]);
+  }, [platform]);
 
   // 3. Coordinate Dragging events
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -519,10 +596,13 @@ export default function Widget() {
   const totalTimeMins = totalWatchTimeMs / 60000;
 
   // Calculate dynamic brain stage based on daily limit progression
+  // Stage 1 (Happy):   0 → 49% of limit (e.g. 0 to 4 for limit 10)
+  // Stage 2 (Worried): 50% → 99% of limit (e.g. 5 to 9 for limit 10)
+  // Stage 3 (Zombie):  100%+ (limit reached/exceeded) (e.g. 10+ for limit 10)
   const brainStage: 1 | 2 | 3 =
-    totalVideosWatched <= Math.max(10, Math.floor(videoLimit * 0.5))
+    totalVideosWatched < Math.floor(videoLimit * 0.5)
       ? 1
-      : totalVideosWatched <= videoLimit
+      : totalVideosWatched < videoLimit
       ? 2
       : 3;
 
@@ -530,13 +610,21 @@ export default function Widget() {
   const videoProgress = Math.min(1.0, totalVideosWatched / videoLimit);
   const maxProgressRatio = videoProgress;
 
-  const isLimitExceeded = totalVideosWatched > videoLimit;
+  // Trigger limit hit at exactly limit count (e.g. 10th clip)
+  const isLimitExceeded = videoLimit > 0 && totalVideosWatched >= videoLimit;
 
   // Remaining budget calculations
   const remainingClips = Math.max(0, videoLimit - totalVideosWatched);
 
   // 5. State Machine Transition Engine
   useEffect(() => {
+    if (!isOnShorts) {
+      if (focusState !== 'idle') {
+        setFocusState('idle');
+      }
+      return;
+    }
+
     if (!isLimitExceeded) {
       if (hasExceededLimits) {
         updateEscalationState({
@@ -569,29 +657,134 @@ export default function Widget() {
     const elapsedMinutes = (Date.now() - overrideStartTime) / 60000;
     const elapsedClips = totalVideosWatched - overrideStartClips;
 
-    const nextState = determineFrictionLadderState({
-      isLimitExceeded,
-      nudgeCleared,
-      reasonCleared,
-      breatheCleared,
-      elapsedMinutes,
-      elapsedClips
-    });
+    // Check if user is in recurring Stage 4 loop (1 or more takeovers already triggered)
+    let nextState: FocusState;
+    if (takeoverCount >= 1) {
+      // Every 5+ reels past takeoverBaseClips triggers Stage 4 again!
+      if (totalVideosWatched - takeoverBaseClips >= 5) {
+        nextState = 'full';
+      } else {
+        nextState = 'idle';
+      }
+    } else {
+      nextState = determineFrictionLadderState({
+        isLimitExceeded,
+        nudgeCleared,
+        reasonCleared,
+        breatheCleared,
+        elapsedMinutes,
+        elapsedClips
+      });
+    }
 
     if (nextState !== focusState) {
       setFocusState(nextState);
       if (nextState === 'breathe') {
-        setBreathTimer(20);
+        setBreathTimer(60);
       } else if (nextState === 'full') {
-        setTakeoverTimer(60);
+        const nextTakeoverCount = takeoverCount + 1;
+        setTakeoverCount(nextTakeoverCount);
+        // Stage 4 break duration:
+        // 1st takeover: 60s (1 min)
+        // 2nd takeover (+5 reels): 5 min (300s)
+        // 3rd takeover (+5 reels): 10 min (600s)
+        // 4th takeover (+5 reels): 15 min (900s)...
+        const durationSecs = nextTakeoverCount <= 1 ? 60 : (nextTakeoverCount - 1) * 5 * 60;
+        setTakeoverTimer(durationSecs);
       }
     }
-  }, [totalVideosWatched, totalTimeMins, isLimitExceeded, focusState, nudgeCleared, reasonCleared, breatheCleared, hasExceededLimits, overrideStartTime, overrideStartClips, platform]);
+  }, [isOnShorts, totalVideosWatched, totalTimeMins, isLimitExceeded, focusState, nudgeCleared, reasonCleared, breatheCleared, hasExceededLimits, overrideStartTime, overrideStartClips, takeoverCount, takeoverBaseClips, platform]);
 
-  // 6. Breathing and Takeover Interval Countdown Loops
+  // 6. Unified Scroll Lock, Video Pause & Keyboard Interception when any modal is active
+  useEffect(() => {
+    if (!isOnShorts || focusState === 'idle') return;
+
+    // 1. Lock scrolling on body and documentElement
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    // 2. Pause active short/reel video so it doesn't keep running in background
+    const pauseActiveVideos = () => {
+      const videos = document.querySelectorAll('video');
+      videos.forEach((v) => {
+        try {
+          if (!v.paused) v.pause();
+        } catch (_) {}
+      });
+    };
+    pauseActiveVideos();
+    const pauseInterval = setInterval(pauseActiveVideos, 400);
+
+    // 3. Block keyboard navigation keys that advance Shorts / Reels
+    const blockedKeys = new Set([
+      'ArrowDown',
+      'ArrowUp',
+      'PageDown',
+      'PageUp',
+      'Space',
+      ' ',
+      'Home',
+      'End',
+      'KeyJ',
+      'KeyK',
+      'j',
+      'k',
+      'J',
+      'K',
+    ]);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Allow typing inside modal inputs/textareas (e.g. reason input)
+      const target = e.target as HTMLElement | null;
+      const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA');
+
+      if (isInput) {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'PageDown' || e.key === 'PageUp') {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        return;
+      }
+
+      if (blockedKeys.has(e.key) || blockedKeys.has(e.code)) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+      }
+    };
+
+    // 4. Block mouse wheel and touchmove events from scrolling YouTube Shorts underneath
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+    };
+
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+    window.addEventListener('wheel', handleWheel, { capture: true, passive: false });
+    window.addEventListener('touchmove', handleTouchMove, { capture: true, passive: false });
+
+    return () => {
+      clearInterval(pauseInterval);
+      document.body.style.overflow = originalBodyOverflow;
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      window.removeEventListener('keydown', handleKeyDown, { capture: true });
+      window.removeEventListener('wheel', handleWheel, { capture: true });
+      window.removeEventListener('touchmove', handleTouchMove, { capture: true });
+    };
+  }, [isOnShorts, focusState]);
+
+  // 7. Breathing and Takeover Interval Countdown Loops
   useEffect(() => {
     if (focusState !== 'breathe') return;
-    document.body.style.overflow = 'hidden'; // Lock scrolling during breathing cycle
 
     const timer = setInterval(() => {
       setBreathTimer((prev) => {
@@ -599,11 +792,12 @@ export default function Widget() {
           clearInterval(timer);
           return 0;
         }
-        // 4s inhale, 7s hold, 8s exhale (Total 19-20 seconds)
+        // 4s inhale, 7s hold, 8s exhale (19s cycle repeating across 60 seconds)
         const left = prev - 1;
-        if (left > 16) {
+        const elapsedInCycle = (60 - left) % 19;
+        if (elapsedInCycle < 4) {
           setBreathPhase('Inhale');
-        } else if (left > 9) {
+        } else if (elapsedInCycle < 11) {
           setBreathPhase('Hold');
         } else {
           setBreathPhase('Exhale');
@@ -612,15 +806,11 @@ export default function Widget() {
       });
     }, 1000);
 
-    return () => {
-      document.body.style.overflow = '';
-      clearInterval(timer);
-    };
+    return () => clearInterval(timer);
   }, [focusState]);
 
   useEffect(() => {
     if (focusState !== 'full') return;
-    document.body.style.overflow = 'hidden'; // Lock scrolling during full takeover
 
     const timer = setInterval(() => {
       setTakeoverTimer((prev) => {
@@ -632,10 +822,7 @@ export default function Widget() {
       });
     }, 1000);
 
-    return () => {
-      document.body.style.overflow = '';
-      clearInterval(timer);
-    };
+    return () => clearInterval(timer);
   }, [focusState]);
 
   // Dismiss handlers
@@ -674,41 +861,31 @@ export default function Widget() {
   };
 
   const handleFullDismiss = () => {
-    // Reset the loop tracker so they can continue for another span before takeover triggers again
+    // Anchor takeoverBaseClips so that the next Stage 4 triggers after +5 reels
     updateEscalationState({
+      takeoverCount: takeoverCount,
+      takeoverBaseClips: totalVideosWatched,
       nudgeCleared: true,
-      reasonCleared: false,
-      breatheCleared: false,
+      reasonCleared: true,
+      breatheCleared: true,
       overrideStartClips: totalVideosWatched,
       overrideStartTime: Date.now(),
     });
     setFocusState('idle');
   };
 
-  // Render dismissed state as the dynamic Brain Pill Badge [🧠 14]
-  if (dismissed) {
-    return (
-      <div
-        style={{
-          position: 'fixed',
-          bottom: '20px',
-          right: '20px',
-          zIndex: 9999999,
-        }}
-      >
-        <BrainPillBadge
-          stage={brainStage}
-          count={totalVideosWatched}
-          onClick={() => setDismissed(false)}
-          title="ScrollGuard: Click to expand details"
-        />
-      </div>
-    );
-  }
-
-  // Format times helper
-  const liveMins = Math.floor(sessionSecs / 60);
+  // Format times helper (e.g. "3h 32m 7s" if >= 1 hour, or "12m 45s" if under an hour)
+  const liveHours = Math.floor(sessionSecs / 3600);
+  const liveMins = Math.floor((sessionSecs % 3600) / 60);
   const liveSecs = sessionSecs % 60;
+  const formattedLiveTime = liveHours > 0 
+    ? `${liveHours}h ${liveMins}m ${liveSecs}s`
+    : `${liveMins}m ${liveSecs}s`;
+
+  // Do not render floating badge or any modals if user is NOT on a Shorts/Reels route
+  if (!isOnShorts) {
+    return null;
+  }
 
   return (
     <>
@@ -799,11 +976,17 @@ export default function Widget() {
             <Shield style={{ width: '48px', height: '48px', color: '#a855f7' }} />
             <h2 className="scrollguard-takeover-title">Hydrate & Stretch</h2>
             <p className="scrollguard-modal-desc" style={{ fontSize: '13px' }}>
-              Repeated overrides detected in this session. Take 60 seconds to stand up, roll your shoulders, or drink a glass of water.
+              Repeated overrides detected in this session. Take{' '}
+              {takeoverCount <= 1 ? '60 seconds' : `${(takeoverCount - 1) * 5} minutes`} to
+              stand up, roll your shoulders, or drink a glass of water.
             </p>
             
             <div style={{ fontSize: '24px', fontWeight: '800', color: '#6366f1', margin: '10px 0' }}>
-              {takeoverTimer > 0 ? `${takeoverTimer}s remaining` : 'Break Complete'}
+              {takeoverTimer > 0
+                ? takeoverTimer >= 60
+                  ? `${Math.floor(takeoverTimer / 60)}m ${String(takeoverTimer % 60).padStart(2, '0')}s remaining`
+                  : `${takeoverTimer}s remaining`
+                : 'Break Complete'}
             </div>
 
             <button
@@ -818,86 +1001,103 @@ export default function Widget() {
         </div>
       )}
 
-      {/* Main Draggable Widget Structure */}
+      {/* Main Draggable Widget Structure — only in idle state */}
       {focusState === 'idle' && (
-        <div
-          className="scrollguard-container"
-          style={{ left: `${position.x}px`, top: `${position.y}px` }}
-          onMouseDown={handleMouseDown}
-        >
-          {minimized ? (
+        dismissed ? (
+          /* Dismissed: show compact brain badge in corner, still clickable to restore */
+          <div
+            style={{
+              position: 'fixed',
+              bottom: '20px',
+              right: '20px',
+              zIndex: 9999999,
+            }}
+          >
             <BrainPillBadge
               stage={brainStage}
               count={totalVideosWatched}
-              onClick={() => setMinimized(false)}
+              onClick={() => setDismissed(false)}
               title="ScrollGuard: Click to expand details"
             />
-          ) : (
-            <div className="scrollguard-main-widget">
-              <div className="scrollguard-widget-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div className="scrollguard-dot" />
-                  <BrainAvatar stage={brainStage} size={20} />
-                  <div className="scrollguard-info">
-                    <span className="scrollguard-label">ScrollGuard</span>
-                    <span className="scrollguard-status">{liveMins}m {liveSecs}s</span>
+          </div>
+        ) : (
+          <div
+            className="scrollguard-container"
+            style={{ left: `${position.x}px`, top: `${position.y}px` }}
+            onMouseDown={handleMouseDown}
+          >
+            {minimized ? (
+              <BrainPillBadge
+                stage={brainStage}
+                count={totalVideosWatched}
+                onClick={() => setMinimized(false)}
+                title="ScrollGuard: Click to expand details"
+              />
+            ) : (
+              <div className="scrollguard-main-widget">
+                <div className="scrollguard-widget-header">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div className="scrollguard-dot" />
+                    <BrainAvatar stage={brainStage} size={20} />
+                    <div className="scrollguard-info">
+                      <span className="scrollguard-label">ScrollGuard</span>
+                      <span className="scrollguard-status">{formattedLiveTime}</span>
+                    </div>
                   </div>
-                </div>
-                
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <button
-                    onClick={() => setDismissed(true)}
-                    className="scrollguard-chevron"
-                    style={{ padding: '2px' }}
-                    title="Dismiss widget for this session"
-                  >
-                    <Minimize2 style={{ width: '12px', height: '12px' }} />
-                  </button>
-                  <button
-                    onClick={() => setMinimized(true)}
-                    className="scrollguard-chevron"
-                    style={{ padding: '2px' }}
-                    title="Minimize details"
-                  >
-                    <ChevronRight style={{ width: '14px', height: '14px' }} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Stats & Progress Layout */}
-              <div className="scrollguard-stats-grid">
-                <div className="scrollguard-stat-row">
-                  <span>Clips Viewed:</span>
-                  <span className="scrollguard-stat-val">{totalVideosWatched}</span>
-                </div>
-                
-                {/* Progress bar */}
-                <div className="scrollguard-progress-container">
-                  <div className="scrollguard-progress-bar">
-                    <div
-                      className={`scrollguard-progress-fill ${isLimitExceeded ? 'overlimit' : ''}`}
-                      style={{ width: `${maxProgressRatio * 100}%` }}
-                    />
-                  </div>
-                  <div className="scrollguard-stat-row" style={{ fontSize: '7.5px' }}>
-                    {isLimitExceeded ? (
-                      <span style={{ color: '#f59e0b', fontWeight: 'bold' }}>Limit exceeded</span>
-                    ) : (
-                      <span>
-                        {remainingClips} clips left
-                      </span>
-                    )}
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <button
+                      onClick={() => setDismissed(true)}
+                      className="scrollguard-chevron"
+                      style={{ padding: '2px' }}
+                      title="Dismiss widget for this session"
+                    >
+                      <Minimize2 style={{ width: '12px', height: '12px' }} />
+                    </button>
+                    <button
+                      onClick={() => setMinimized(true)}
+                      className="scrollguard-chevron"
+                      style={{ padding: '2px' }}
+                      title="Minimize details"
+                    >
+                      <ChevronRight style={{ width: '14px', height: '14px' }} />
+                    </button>
                   </div>
                 </div>
 
-                <div className="scrollguard-stat-row" style={{ marginTop: '2px' }}>
-                  <span>Platform Limit:</span>
-                  <span className="scrollguard-stat-val">{videoLimit} clips</span>
+                {/* Stats & Progress Layout */}
+                <div className="scrollguard-stats-grid">
+                  <div className="scrollguard-stat-row">
+                    <span>Clips Viewed:</span>
+                    <span className="scrollguard-stat-val">{totalVideosWatched}</span>
+                  </div>
+                  
+                  {/* Progress bar */}
+                  <div className="scrollguard-progress-container">
+                    <div className="scrollguard-progress-bar">
+                      <div
+                        className={`scrollguard-progress-fill ${isLimitExceeded ? 'overlimit' : ''}`}
+                        style={{ width: `${maxProgressRatio * 100}%` }}
+                      />
+                    </div>
+                    <div className="scrollguard-stat-row" style={{ fontSize: '7.5px' }}>
+                      {isLimitExceeded ? (
+                        <span style={{ color: '#f59e0b', fontWeight: 'bold' }}>Limit exceeded</span>
+                      ) : (
+                        <span>{remainingClips} clips left</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="scrollguard-stat-row" style={{ marginTop: '2px' }}>
+                    <span>Platform Limit:</span>
+                    <span className="scrollguard-stat-val">{videoLimit} clips</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )
       )}
     </>
   );

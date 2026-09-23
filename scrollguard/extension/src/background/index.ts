@@ -25,12 +25,22 @@ function getTodayDateString(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-async function checkAndResetDailyStats() {
+async function checkAndResetDailyStats(force = false) {
   const dateStr = getTodayDateString();
   const stats = await extensionStorage.get<any>('today_stats', null);
-  if (!stats || stats.date !== dateStr) {
-    console.log(`[ScrollGuard] Midnight check: Resetting daily stats for new day (${dateStr}).`);
+  if (force || !stats || stats.date !== dateStr) {
+    console.log(`[ScrollGuard] Resetting daily stats (force=${force}, date=${dateStr}).`);
     await extensionStorage.set('today_stats', { date: dateStr, videos: 0, timeMs: 0, sessions: 0 });
+
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      const allData = await chrome.storage.local.get(null);
+      const keysToRemove = Object.keys(allData).filter(
+        (key) => key.startsWith('session_start_') || key.startsWith('escalation_')
+      );
+      if (keysToRemove.length > 0) {
+        await chrome.storage.local.remove(keysToRemove);
+      }
+    }
     await syncDataToBackend();
   }
 }
@@ -38,9 +48,8 @@ async function checkAndResetDailyStats() {
 function scheduleMidnightAlarm() {
   if (typeof chrome !== 'undefined' && chrome.alarms) {
     const now = new Date();
-    const midnight = new Date();
-    midnight.setHours(24, 0, 0, 0); // Next 12:00 AM midnight
-    const timeToMidnight = midnight.getTime() - now.getTime();
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0);
+    const timeToMidnight = Math.max(1000, midnight.getTime() - now.getTime());
 
     chrome.alarms.create('midnight_reset', {
       when: Date.now() + timeToMidnight,
@@ -252,7 +261,7 @@ chrome.runtime.onMessage.addListener((
           key => key.startsWith('aggregate_') || key.startsWith('session_start_') || key.startsWith('escalation_')
         );
         await chrome.storage.local.remove(keysToRemove);
-        await extensionStorage.set('today_stats', { videos: 0, timeMs: 0, sessions: 0 });
+        await extensionStorage.set('today_stats', { date: getTodayDateString(), videos: 0, timeMs: 0, sessions: 0 });
 
         // Terminate any active sessions without saving
         const platforms: Platform[] = ['youtube', 'instagram', 'facebook', 'tiktok', 'x'];
@@ -290,7 +299,25 @@ chrome.runtime.onMessage.addListener((
 
 // Run initial checks on background worker startup
 (async () => {
-  await checkAndResetDailyStats();
+  // User-requested reset of timer and reels count (timer_reset_v3)
+  const resetDone = await extensionStorage.get('timer_reset_v3', false);
+  if (!resetDone) {
+    console.log('[ScrollGuard] Performing user-requested reset of timer and clips count.');
+    await checkAndResetDailyStats(true);
+    await logStorage.clearLogs();
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      const allData = await chrome.storage.local.get(null);
+      const keysToRemove = Object.keys(allData).filter(
+        (key) => key.startsWith('aggregate_') || key.startsWith('session_start_') || key.startsWith('escalation_')
+      );
+      if (keysToRemove.length > 0) {
+        await chrome.storage.local.remove(keysToRemove);
+      }
+    }
+    await extensionStorage.set('timer_reset_v3', true);
+  } else {
+    await checkAndResetDailyStats();
+  }
   scheduleMidnightAlarm();
   await syncDataToBackend();
 })();

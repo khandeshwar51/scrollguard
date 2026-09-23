@@ -1,0 +1,106 @@
+[SYNOPSIS & PROBLEM FORMULATION]
+Render all UI exclusively inside an open Shadow Root with style resets.
+
+Users press keyboard shortcuts (j, k, Down) to skip.
+
+Capture-phase event listeners call stopImmediatePropagation() and preventDefault().
+
+Exceeding Chrome Storage 5MB memory quota.
+
+Dual-layer storage: lightweight stats in local storage, heavy streams in IndexedDB.
+
+In-Scope Functional Boundaries: Automated short-form video tracking across YouTube Shorts, Instagram Reels, Facebook Reels, TikTok web, and X feeds; viewport intersection tracking; local IndexedDB persistence; deterministic mathematical dopamine calculation; progressive cognitive friction ladder modal rendering; event-capture keyboard and wheel scroll-locking; and reactive midnight counter rollover.
+
+Out-of-Scope Boundaries: The system strictly excludes remote tracking pixels, third-party cloud data harvesting, native mobile OS kernel manipulation (restricted to standard desktop Chromium browsers), and content censorship or algorithmic video filtering (the system regulates behavior and time , not ideology or content ).
+
+A formal four-dimensional feasibility analysis was conducted prior to implementation to establish technical and operational viability:
+
+Table 5.1.1: Operational Constraints & Built-In Software Safeguards
+
+In-Memory Cache Coherence & Sub-Millisecond Retrieval: Telemetry persistence decouples high-frequency video events into local IndexedDB object stores while caching daily totals directly in chrome.storage.local . This keeps memory consumption under 35 MB, ensuring continuous, smooth 60 FPS viewport scrolling without browser tab degradation.
+
+S = T_watch / (N_videos * 1000)
+
+S >= 15s: Healthy; S < 4s: Critical rapid doomscroll.
+
+F_swipe = N_videos / (T_watch / 60000)
+
+> 15 clips/min indicates impulsive variable-ratio reward seeking.
+
+S_count = min(25, (N / u_30) * 12.5)
+
+Normalizes daily volume against 30-day baseline consumption.
+
+S_night = min(15, (T_late / T_watch) * 15)
+
+Penalizes blue-light watch intervals disrupting circadian rhythm.
+
+B_breaks = min(10, N_breaks * 2)
+
+Rewards daytime pauses > 20 mins to encourage offline breaks.
+
+5.8. Proposed Methodology & Modular Software Architecture
+
+ScrollGuard implements a decoupled, multi-tiered client architecture organized into specialized functional units: (1) Content Script Detection Engine: Mounts platform-specific observers to track dynamic video DOM viewports; (2) Service Worker Controller: Manages 90s session timeouts, midnight counter resets, and cross-tab broadcasts; (3) Isolated Shadow Root UI: Renders draggable brain pills and 4-stage escalation modals without CSS leakage; (4) Pure Functional Math Engine: Evaluates multi-factor dopamine indices and scroll velocity categories.
+
+5.9. Mathematical Formulations of Digital Wellbeing Telemetry Suite
+
+All behavioral indicators are computed via deterministic mathematical formulations to ensure transparent, reproducible scoring:
+
+Pacing Velocity Confirmation: When average seconds spent per video drops below 4.0 seconds (S Critical Rapid Doomscroll , immediately elevating the velocity score S_speed to 20 points.
+
+Exponential Pacing Decay: Rather than computing raw cumulative averages over multi-hour periods, ScrollGuard evaluates recent swipe bursts using exponential smoothing (alpha = 0.10). This ensures that short bursts of rapid swiping are detected immediately even within long sessions.
+
+Circadian Late-Night Penalty Mechanics: Between 11:00 PM and 4:00 AM, melatonin synthesis is most vulnerable to short-wavelength artificial blue light. The S_night penalty scales proportionally with late-night watch time, applying up to 15 penalty points to the daily dopamine score.
+
+Numerical Robustness & Zero-Division Safeguards: When videoCount is zero or sessions contain empty playback events, the mathematical engine falls back gracefully to default zero values, preventing division-by-zero runtime exceptions.
+
+5.10. Multi-Factor Dopamine Impact Score Formulation (0 - 100)
+
+The composite Dopamine Score D total quantifies the neurological intensity of the user
+
+D total = clamp [0, 100] ( S count + S speed + S night + S rep + S binge &minus; B breaks ) CoverSub 1. Volume Ratio Score ( S count , Max 25): Normalizes daily consumption against the user
+
+5.11. Machine Learning & Empirical Behavioral Pattern Mining
+
+Heuristic Confidence Metric: The system computes a composite doomscroll confidence metric C in [0, 1.0] . A doomscrolling event is formally identified when C >= 0.60 : C = 0.30&middot;I(N > 40) + 0.15&middot;I(Keys = 0) + 0.15&middot;I(MouseMoves = 0) + 0.15&middot;I(delta_t pause session > 45m)
+
+Stage 4 Compulsory Scaling Formula: When repetitive limit overrides occur, the lockout duration expands incrementally: T break (k) = 60 seconds (for k = 1), and (k - 1) &times; 300 seconds (for k >= 2) where k represents the cumulative takeover index, triggering every +5 videos beyond the base threshold.
+
+Theoretical Justification for Escalation Ladder: Static blockers fail because users experience psychological reactance. By progressively introducing friction (soft nudge -> written intention -> somatic breathing -> scaled lockout), the user is given repeated off-ramps, dramatically increasing long-term habit transformation efficacy.
+
+Intel Core i3 / AMD Ryzen 3 (Dual Core @ 2.0 GHz)
+
+Intel Core i5 / AMD Ryzen 5 (Quad Core @ 2.5 GHz+)
+
+4 GB DDR4 RAM (2400 MHz)
+
+8 GB / 16 GB DDR4/DDR5 RAM
+
+100 MB available local SSD/HDD space
+
+500 MB available local NVMe SSD space
+
+1366 x 768 standard HD display
+
+1920 x 1080 Full HD (1080p) or 4K Retina display
+
+Exact Version & Role in Architecture
+
+Windows 10/11 / macOS / Linux
+
+Cross-platform POSIX and Win32 host execution runtime.
+
+Google Chrome / Brave / Edge
+
+Chromium v110+ supporting Manifest V3 service workers.
+
+React 18.3 / TS 5.4+ with strict compile-time type verification.
+
+Vite 8.1.5 providing lightning-fast HMR and bundle splitting.
+
+Browser native object stores for video events and daily limits.
+
+Vitest v4.1+ executing 21 automated invariant assertions.
+
+The computational architecture of ScrollGuard is engineered to operate efficiently across modest consumer laptops as well as high-performance development workstations without degrading host website rendering frame rates:

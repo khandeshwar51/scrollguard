@@ -190,7 +190,7 @@ export default function Coach({ data }: CoachProps) {
                 <h3 className="text-base font-bold text-white">AI Coach Consultation</h3>
               </div>
               <p className="text-xs text-slate-400 max-w-xl">
-                Consult with Claude to analyze aggregate statistics, identify scrolling traps, and outline supportive habit actions.
+                Consult with AI Coach (powered by Groq / Claude) to analyze aggregate statistics, identify scrolling traps, and outline supportive habit actions.
               </p>
             </div>
 

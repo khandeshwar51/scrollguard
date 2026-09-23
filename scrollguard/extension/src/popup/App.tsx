@@ -249,16 +249,22 @@ export default function App() {
   const dopamineInfo = calculateDopamineScore(currentAgg, rollingAvg, todaySessions);
   const speedInfo = calculateScrollSpeed(currentAgg.totalWatchTimeMs, currentAgg.totalVideos);
 
-  const watchMinutes = (stats.timeMs / 60000).toFixed(1);
+  const watchHours = Math.floor(stats.timeMs / 3600000);
+  const watchMins = Math.floor((stats.timeMs % 3600000) / 60000);
+  const formattedDuration = watchHours > 0
+    ? `${watchHours}h ${watchMins}m`
+    : `${(stats.timeMs / 60000).toFixed(1)}m`;
 
   // Speed Badge Themes
   const getSpeedStyles = (lvl: string) => {
     switch (lvl) {
+      case 'Over Limit':
       case 'Critical':
         return 'bg-rose-500/10 text-rose-400 border border-rose-500/20';
       case 'Risky':
         return 'bg-orange-500/10 text-orange-400 border border-orange-500/20';
       case 'Moderate':
+      case 'Approaching':
         return 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
       default:
         return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
@@ -456,7 +462,7 @@ export default function App() {
                   Duration
                 </span>
                 <span className="text-sm font-bold text-white mt-0.5">
-                  {watchMinutes}m
+                  {formattedDuration}
                 </span>
               </div>
               <div className="bg-slate-900/30 border border-slate-900 p-2.5 rounded-xl flex flex-col items-center text-center">
@@ -488,8 +494,9 @@ export default function App() {
                 <div className="flex flex-col gap-1">
                   {activePlatforms.map(([platform, data]) => {
                     const getPaceLevel = (count: number) => {
-                      if (count > 50) return 'Risky';
-                      if (count > 25) return 'Moderate';
+                      const limit = videoLimit > 0 ? videoLimit : 40;
+                      if (count >= limit) return 'Over Limit';
+                      if (count >= limit * 0.75) return 'Approaching';
                       return 'Healthy';
                     };
                     const level = getPaceLevel(data.count);

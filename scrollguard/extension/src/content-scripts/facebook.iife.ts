@@ -19,9 +19,13 @@ function getFacebookVideoId(video: HTMLVideoElement): string | null {
     parent = parent.parentElement;
   }
 
-  // Option C: Fallback to video source hashing
-  if (video.src) {
-    return btoa(video.src.split('?')[0]).substring(0, 16);
+  // Option C: Fallback to video source hashing ONLY if in Reels context
+  if (location.pathname.includes('/reel') && video.src) {
+    try {
+      return btoa(video.src.split('?')[0]).substring(0, 16);
+    } catch (_) {
+      return video.src.substring(0, 16);
+    }
   }
   return null;
 }

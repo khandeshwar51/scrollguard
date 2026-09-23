@@ -1,0 +1,92 @@
+[REQUIREMENTS SPECIFICATION]
+6.2. Software Requirements & Production Package Manifest
+
+The software stack relies exclusively on verified open-source dependencies and standard W3C browser specifications:
+
+Zero-Install Client Architecture: The client extension requires zero third-party drivers or native OS binaries. All components execute within Chromium
+
+Deterministic Dependency Locking: All core npm packages are strictly locked to exact semantic versions in package-lock.json , preventing unintended API breaks or upstream supply-chain vulnerabilities during deployment.
+
+Detailed Input, Processing & Verification Specification
+
+System shall inject lightweight content scripts into YouTube Shorts, Instagram Reels, Facebook Reels, TikTok, and X feeds within 100ms of page load.
+
+System shall monitor window.location.pathname. On standard homepages (youtube.com/, instagram.com/), the widget shall unmount and remain hidden.
+
+System shall track video visibility using IntersectionObserver. Only videos intersecting >= 60% of viewport with paused==false shall increment counters.
+
+System shall render a draggable Shadow DOM badge displaying live clip counts and Avatar emotion (Happy for =100%).
+
+When totalVideosWatched >= videoLimit, system shall immediately trigger Stage 1 (Soft Nudge Modal), halting momentum and auto-pausing media.
+
+If user overrides limits, system shall transition sequentially: Stage 2 Intention Entry (+5 clips), Stage 3 Breathing (+8 clips), Stage 4 Break (+11 clips).
+
+During active modal states, system shall intercept wheel, touchmove, and keyboard keys (Down, Up, Space, j, k) using capture: true.
+
+System shall finalize and flush sessions to IndexedDB after 90 seconds of inactivity. Daily counters shall reset upon detecting midnight rollover.
+
+6.3. Functional Requirements Specification (Part 1: Ingestion & Telemetry)
+
+The functional capabilities of ScrollGuard are enumerated below. Part 1 defines data ingestion, active viewport detection, and real-time state interception:
+
+Verification Contract: Requirements FR-01 through FR-08 are unit-tested with Vitest fixtures simulating DOM mutations, route changes, timer expirations, and boundary watch sessions to verify 100% deterministic execution.
+
+Architectural Workflow for FR-01 through FR-04: When a user navigates to a short-form video endpoint, the content script evaluates the route, creates an open Shadow Root, and mounts the React root. As videos enter the center of the screen, IntersectionObserver triggers VideoTracker.track() , establishing a 1-second active playback heartbeat.
+
+In-Memory Cache Validation (FR-05 & FR-08): Daily limits and clip aggregates cached in chrome.storage.local are verified across browser tabs. Inactivity timers evaluate Date.now() - lastActivity > 90000 to flush completed sessions atomically into browser IndexedDB.
+
+Detailed Input, Processing & Verification Specification
+
+System shall present a glassmorphic choice dialog: (closes feed) or (+5 clip temporary override).
+
+System shall enforce a mandatory text input requirement: user must type >= 5 characters explaining purpose to unlock continue button.
+
+System shall execute a non-skippable 60-second 4-7-8 cyclic somatic breathing loop with animated SVG pacing visualization.
+
+System shall render a full-screen takeover lockout screen. Lockout duration scales: 60s for 1st break, increasing by +5 mins per 5 clips.
+
+System shall compute composite Dopamine Score (0-100) combining volume, velocity, late-night binging, repetition, and waking recovery breaks.
+
+System shall classify pacing into 4 discrete step functions: Healthy (>=15s), Moderate (8-15s), Risky (4-8s), and Critical (<4s).
+
+System shall compute confidence metric C in [0, 1.0]. A confidence score C >= 0.60 shall trigger active doomscroll warnings.
+
+System shall provide a 7x24 calendar activity heatmap and Groq AI coaching recommendations based on historical session distributions.
+
+6.3. Functional Requirements Specification (Part 2: Escalation & Analytics)
+
+Part 2 defines progressive friction escalation, mathematical scoring formulations, and analytics cockpit capabilities:
+
+Predictive Integrity Guarantee: Requirement FR-15 mandates that doomscroll confidence calculations are based strictly on client-side telemetry invariants without heuristic guessing or probabilistic black-box assumptions.
+
+Consensus Escalation Bounds (FR-09 to FR-12): The escalation ladder enforces strict deterministic progression. Once a stage is completed, the user is granted temporary scrolling until the next threshold (+5 clips for Stage 2, +8 clips for Stage 3, and +11 clips for Stage 4) is reached.
+
+Automated Telemetry Polling (FR-16): The standalone web dashboard queries local IndexedDB or the local Express synchronization server ( localhost:5000/api/stats ) every 10 seconds, updating calendar heatmaps and metrics dynamically.
+
+Quantitative Target & Engineering Implementation Verification
+
+Viewport video tracking checks execute in < 5 ms; modal injection latency < 15 ms, ensuring zero dropped frames.
+
+All telemetry logs and session records reside strictly within client browser IndexedDB with zero external server transmission.
+
+All UI elements are mounted inside an open Shadow Root with encapsulated CSS resets, preventing host stylesheet leakage.
+
+Automatic state recovery from chrome.storage.local if background service worker is suspended during idle periods.
+
+Total memory consumption bounded < 35 MB across 10 active tabs; automatic 90s session finalization prevents leaks.
+
+Dark glassmorphic aesthetic with high-contrast typography, color-coded Brain Avatar emotion badges, and smooth CSS easing.
+
+Identical execution behavior across Google Chrome, Brave, MS Edge on Windows 10/11, macOS, and Linux.
+
+100% test pass rate maintained across all 21 Vitest specification assertions covering dopamine math and state transitions.
+
+Whitelisted regex character matching on user text inputs to prevent XSS attacks at the Shadow DOM boundary.
+
+Achieve 99.9% uptime across active browsing sessions, resilient against host SPA route mutations and tab recycling.
+
+6.4. Non-Functional Requirements Specification (NFR-01 to NFR-10)
+
+Non-functional requirements specify operational constraints, performance targets, and architectural quality standards enforced across ScrollGuard:
+
+Architectural Verification: In-memory storage caching satisfies NFR-01 and NFR-05 simultaneously by delivering sub-millisecond lookups while eliminating the latency of external cloud database calls.
